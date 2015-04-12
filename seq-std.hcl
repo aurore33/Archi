@@ -80,17 +80,18 @@ intsig valM	'valm'			# Value read from memory
 
 # Does fetched instruction require a regid byte?
 bool need_regids =
-	icode in { RRMOVL, OPL, IOPL, PUSHL, POPL, IRMOVL, RMMOVL, MRMOVL, JREG, JMEM};
+	icode in { RRMOVL, OPL, PUSHL, POPL, IRMOVL, RMMOVL, MRMOVL, JREG, JMEM};
 
 # Does fetched instruction require a constant word?
 bool need_valC =
-	icode in { IRMOVL, RMMOVL, MRMOVL, JXX, CALL, IOPL, JMEM };
+	icode in { IRMOVL, RMMOVL, MRMOVL, JXX, CALL, OPL, JMEM };
 
 bool instr_valid = icode in 
 	{ NOP, HALT, RRMOVL, IRMOVL, RMMOVL, MRMOVL,
 	       OPL, IOPL, JXX, CALL, RET, PUSHL, POPL, JREG, JMEM, LEAVE };
 
 ################ Decode Stage    ###################################
+
 
 ## What register should be used as the A source?
 int srcA = [
@@ -102,14 +103,14 @@ int srcA = [
 
 ## What register should be used as the B source?
 int srcB = [
-	icode in { OPL, IOPL, RMMOVL, MRMOVL, JMEM } : rB;
+	icode in { OPL, RMMOVL, MRMOVL, JMEM } : rB;
 	icode in { PUSHL, POPL, CALL, RET } : RESP;
 	1 : RNONE;  # Don't need register
 ];
 
 ## What register should be used as the E destination?
 int dstE = [
-	icode in { RRMOVL, IRMOVL, OPL, IOPL } : rB;
+	icode in { RRMOVL, IRMOVL, OPL } : rB;
 	icode in { PUSHL, POPL, CALL, RET, LEAVE } : RESP;
 	1 : RNONE;  # Don't need register
 ];
@@ -124,8 +125,9 @@ int dstM = [
 
 ## Select input A to ALU
 int aluA = [
+	icode ==OPL && rA == 8 : valC;
 	icode in { RRMOVL, OPL, LEAVE } : valA;
-	icode in { IRMOVL, RMMOVL, MRMOVL, IOPL, JMEM} : valC;
+	icode in { IRMOVL, RMMOVL, MRMOVL, JMEM} : valC;
 	icode in { CALL, PUSHL } : -4;
 	icode in { RET, POPL } : 4;
 	# Other instructions don't need ALU
@@ -133,19 +135,19 @@ int aluA = [
 
 ## Select input B to ALU
 int aluB = [
-	icode in { RMMOVL, MRMOVL, OPL, IOPL, CALL, PUSHL, RET, POPL } : valB;
+	icode in { RMMOVL, MRMOVL, OPL, CALL, PUSHL, RET, POPL } : valB;
 	icode in { RRMOVL, IRMOVL, LEAVE} : 0;
 	# Other instructions don't need ALU
 ];
 
 ## Set the ALU function
 int alufun = [
-	icode in { OPL, IOPL } : ifun;
+	icode in { OPL } : ifun;
 	1 : ALUADD;
 ];
 
 ## Should the condition codes be updated?
-bool set_cc = icode in { OPL, IOPL };
+bool set_cc = icode in { OPL };
 
 ################ Memory Stage    ###################################
 
